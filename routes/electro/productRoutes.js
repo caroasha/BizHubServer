@@ -1,0 +1,12 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/electro/productController');
+const auth = require('../../middleware/electro/auth');
+const sub = require('../../middleware/electro/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getAll);
+router.get('/:id', ctrl.getById);
+router.post('/', ctrl.create);
+router.put('/:id', ctrl.update);
+router.delete('/:id', ctrl.remove);
+router.put('/:id/stock', ctrl.adjustStock);
+module.exports = router;

@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/electro/settingsController');
+const auth = require('../../middleware/electro/auth');
+const sub = require('../../middleware/electro/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getSettings);
+router.put('/general', ctrl.updateGeneral);
+router.put('/profile', ctrl.updateProfile);
+router.put('/password', ctrl.updatePassword);
+router.put('/preferences', ctrl.updatePreferences);
+module.exports = router;
