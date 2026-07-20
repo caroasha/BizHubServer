@@ -15,6 +15,7 @@ const reportRoutes = require('./reportRoutes');
 const settingsRoutes = require('./settingsRoutes');
 const staffRoutes = require('./staffRoutes');
 
+
 // Register all routes
 router.use('/menu', menuRoutes);
 router.use('/orders', orderRoutes);
@@ -29,5 +30,6 @@ router.use('/suppliers', supplierRoutes);
 router.use('/reports', reportRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/staff', staffRoutes);
+router.use('/dashboard', require('./dashboardRoutes'));
 
 module.exports = router;

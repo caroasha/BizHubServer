@@ -81,10 +81,12 @@ const create = asyncHandler(async (req, res) => {
     });
   }
 
+  // Get count for receipt number
   const count = await Transaction.countDocuments({ tenantId: req.tenant._id });
   const transactionId = generateReceiptNo('restaurant', count + 1);
   const totalAmount = subtotal - (discount || 0);
 
+  // Create transaction
   const transaction = await Transaction.create({
     tenantId: req.tenant._id,
     transactionId,
@@ -101,7 +103,7 @@ const create = asyncHandler(async (req, res) => {
     createdBy: req.user.id
   });
 
-  // Update customer stats
+  // Update customer stats if phone provided
   if (customerPhone) {
     const customer = await Customer.findOne({ tenantId: req.tenant._id, phone: customerPhone });
     if (customer) {
@@ -112,6 +114,7 @@ const create = asyncHandler(async (req, res) => {
     }
   }
 
+  // Audit log
   await AuditLog.create({
     tenantId: req.tenant._id,
     userId: req.user.id,
@@ -123,19 +126,30 @@ const create = asyncHandler(async (req, res) => {
     details: { transactionId, totalAmount }
   });
 
-  // Send receipt email
+  // ✅ FIXED: Send receipt email with proper receipt number
   if (customerEmail) {
     try {
       const templates = require('../../templates/restoEmailTemplates');
+      
+      // Prepare sale data with explicit receipt number
+      const saleData = {
+        ...transaction.toObject(),
+        receiptNumber: transactionId,
+        items: transactionItems
+      };
+      
       const html = await templates.saleInvoice({
         tenantId: req.tenant._id,
-        sale: { ...transaction.toObject(), items: transactionItems }
+        sale: saleData
       });
+      
       await emailService.send({
         to: customerEmail,
         subject: `Receipt #${transactionId}`,
         html
       });
+      
+      logger.info('Receipt email sent to:', customerEmail);
     } catch (err) {
       logger.error('Failed to send receipt email:', err.message);
     }

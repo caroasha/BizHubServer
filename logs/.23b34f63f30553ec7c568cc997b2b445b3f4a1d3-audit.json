@@ -1,0 +1,15 @@
+{
+    "keep": {
+        "days": false,
+        "amount": 30
+    },
+    "auditLog": "logs\\.23b34f63f30553ec7c568cc997b2b445b3f4a1d3-audit.json",
+    "files": [
+        {
+            "date": 1784443029997,
+            "name": "logs\\bizhub-error-2026-07-19.log",
+            "hash": "bacaa6dd94c0c08ff5342cddd1ac7d3948cc9ee7f8e7b07a12dd8f7b82fd21d1"
+        }
+    ],
+    "hashType": "sha256"
+}
