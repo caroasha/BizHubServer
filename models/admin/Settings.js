@@ -17,8 +17,8 @@ const settingsSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    enum: ['general', 'subscription', 'payment', 'email', 'sms', 'security', 'features', 'limits'],
-    required: true,
+    default: 'general',
+    trim: true,
   },
   isPublic: {
     type: Boolean,
