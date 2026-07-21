@@ -4,9 +4,12 @@ const purchaseOrderItemSchema = new mongoose.Schema({
   medicineId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Medicine',
+    default: null,
+  },
+  medicineName: {
+    type: String,
     required: true,
   },
-  medicineName: String,
   quantity: {
     type: Number,
     required: true,

@@ -5,6 +5,8 @@ router.use('/sales', require('./saleRoutes'));
 router.use('/prescriptions', require('./prescriptionRoutes'));
 router.use('/suppliers', require('./supplierRoutes'));
 router.use('/purchases', require('./purchaseRoutes'));
+router.use('/accounts', require('./accountRoutes'));
+router.use('/ai', require('./aiRoutes'));
 router.use('/reports', require('./reportRoutes'));
 router.use('/settings', require('./settingsRoutes'));
 router.use('/staff', require('./staffRoutes'));

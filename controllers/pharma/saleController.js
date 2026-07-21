@@ -1,5 +1,6 @@
 const Sale = require('../../models/pharma/Sale');
 const Medicine = require('../../models/pharma/Medicine');
+const Account = require('../../models/pharma/Account');
 const AuditLog = require('../../models/admin/AuditLog');
 const asyncHandler = require('../../utils/asyncHandler');
 const { sendSuccess, sendPaginated } = require('../../utils/response');
@@ -13,19 +14,11 @@ const getAll = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, startDate, endDate, paymentStatus, search, source } = req.query;
   const skip = (page - 1) * limit;
   const filter = { tenantId: req.tenant._id };
-  if (paymentStatus) {
-    const statuses = paymentStatus.split(',');
-    filter.paymentStatus = { $in: statuses };
-  }
+  if (paymentStatus) { const statuses = paymentStatus.split(','); filter.paymentStatus = { $in: statuses }; }
   if (source) filter.source = source;
   if (startDate && endDate) filter.createdAt = { $gte: new Date(startDate), $lte: new Date(endDate) };
   if (search) filter.$or = [{ receiptNumber: { $regex: search, $options: 'i' } }, { customerName: { $regex: search, $options: 'i' } }, { customerPhone: { $regex: search, $options: 'i' } }];
-
-  const [sales, total] = await Promise.all([
-    Sale.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(),
-    Sale.countDocuments(filter),
-  ]);
-
+  const [sales, total] = await Promise.all([Sale.find(filter).sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)).lean(), Sale.countDocuments(filter)]);
   sendPaginated(res, sales, { page: parseInt(page), limit: parseInt(limit), totalPages: Math.ceil(total / limit), totalResults: total });
 });
 
@@ -35,6 +28,7 @@ const getById = asyncHandler(async (req, res) => {
   sendSuccess(res, sale);
 });
 
+// POS quick sale
 const create = asyncHandler(async (req, res) => {
   const { items, customerName, customerPhone, customerEmail, paymentMethod, discount, notes } = req.body;
   if (!items || !items.length) throw new ApiError(400, 'Items required');
@@ -79,18 +73,26 @@ const create = asyncHandler(async (req, res) => {
     details: { receiptNumber, totalAmount, source: 'pos' },
   });
 
+  // Auto-log income
+  await Account.create({
+    tenantId: req.tenant._id, type: 'income', category: 'sales',
+    amount: totalAmount, description: `Sale #${receiptNumber} - ${customerName || 'Walk-in'}`,
+    date: new Date(), reference: { model: 'Sale', id: sale._id }, createdBy: req.user._id,
+  });
+
   if (customerEmail) {
     try {
       const Tenant = require('../../models/admin/Tenant');
       const tenant = await Tenant.findById(req.tenant._id).select('businessName').lean();
       const html = await pharmaTemplates.saleInvoice({ tenantId: req.tenant._id, sale: { ...sale.toObject(), items: saleItems } });
-      await emailService.send({ to: customerEmail, subject: `Invoice #${receiptNumber} - ${tenant?.businessName || 'Pharmacy'}`, html });
+      await emailService.send({ to: customerEmail, subject: `Receipt #${receiptNumber} - ${tenant?.businessName || 'Pharmacy'}`, html });
     } catch (err) { logger.error('Failed to send invoice email:', err.message); }
   }
 
   sendSuccess(res, { ...sale.toObject(), items: saleItems }, 'Sale completed', 201);
 });
 
+// Create invoice (draft)
 const createInvoice = asyncHandler(async (req, res) => {
   const { items, customerName, customerPhone, customerEmail, paymentMethod, discount, notes } = req.body;
 
@@ -133,6 +135,7 @@ const createInvoice = asyncHandler(async (req, res) => {
   sendSuccess(res, sale, 'Invoice created', 201);
 });
 
+// Update invoice
 const update = asyncHandler(async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenant._id });
   if (!sale) throw new ApiError(404, 'Invoice not found');
@@ -168,15 +171,10 @@ const update = asyncHandler(async (req, res) => {
   }
 
   await sale.save();
-
-  await AuditLog.create({
-    tenantId: req.tenant._id, userId: req.user._id, userModel: 'PharmaUser',
-    action: 'invoice.updated', module: 'pharma', resource: 'Sale', resourceId: sale._id,
-  });
-
   sendSuccess(res, sale, 'Invoice updated');
 });
 
+// Mark as paid
 const markAsPaid = asyncHandler(async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenant._id });
   if (!sale) throw new ApiError(404, 'Invoice not found');
@@ -194,18 +192,24 @@ const markAsPaid = asyncHandler(async (req, res) => {
   sale.paymentStatus = 'paid';
   await sale.save();
 
+  // Auto-log income
+  await Account.create({
+    tenantId: req.tenant._id, type: 'income', category: 'sales',
+    amount: sale.totalAmount, description: `Invoice #${sale.receiptNumber} paid`,
+    date: new Date(), reference: { model: 'Sale', id: sale._id }, createdBy: req.user._id,
+  });
+
   await AuditLog.create({
     tenantId: req.tenant._id, userId: req.user._id, userModel: 'PharmaUser',
     action: 'invoice.paid', module: 'pharma', resource: 'Sale', resourceId: sale._id,
   });
 
-  // Send invoice email if customer email exists
   if (sale.customerEmail) {
     try {
       const Tenant = require('../../models/admin/Tenant');
       const tenant = await Tenant.findById(req.tenant._id).select('businessName').lean();
       const html = await pharmaTemplates.saleInvoice({ tenantId: req.tenant._id, sale: sale.toObject() });
-      await emailService.send({ to: sale.customerEmail, subject: `Invoice #${sale.receiptNumber} - ${tenant?.businessName || 'Pharmacy'}`, html });
+      await emailService.send({ to: sale.customerEmail, subject: `Receipt #${sale.receiptNumber} - ${tenant?.businessName || 'Pharmacy'}`, html });
     } catch (err) { logger.error('Failed to send invoice email:', err.message); }
   }
 
@@ -224,6 +228,13 @@ const cancel = asyncHandler(async (req, res) => {
         { $inc: { stock: item.quantity } }
       );
     }
+
+    // Reverse income
+    await Account.create({
+      tenantId: req.tenant._id, type: 'expense', category: 'other',
+      amount: sale.totalAmount, description: `Reversal: Sale #${sale.receiptNumber} cancelled`,
+      date: new Date(), reference: { model: 'Sale', id: sale._id }, createdBy: req.user._id,
+    });
   }
 
   sale.paymentStatus = 'cancelled';

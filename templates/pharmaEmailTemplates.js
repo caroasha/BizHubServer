@@ -178,4 +178,47 @@ const lowStockAlert = async (data) => {
   return baseLayout(content, 'Low Stock Alert', data.tenantId);
 };
 
-module.exports = { saleInvoice, prescriptionReady, expiryAlert, lowStockAlert };
+// ---- PURCHASE ORDER ----
+const purchaseOrder = async (data) => {
+  const { order, supplier, businessName } = data;
+  const itemsHtml = (order.items || []).map(item => `
+    <tr style="${styles.detailRow}">
+      <td style="${styles.detailLabel}">${item.medicineName}</td>
+      <td style="text-align:center;padding:8px 0;font-size:13px;">${item.quantity}</td>
+      <td style="text-align:right;padding:8px 0;font-size:13px;">KSh ${(item.unitPrice || 0).toLocaleString()}</td>
+      <td style="text-align:right;padding:8px 0;font-size:13px;font-weight:600;">KSh ${(item.totalPrice || 0).toLocaleString()}</td>
+    </tr>
+  `).join('');
+
+  const content = `
+    <p style="font-size:15px;color:#475569;line-height:1.6;margin:0 0 16px;">Dear ${supplier?.name || 'Supplier'},</p>
+    <p style="font-size:15px;color:#475569;line-height:1.6;margin:0 0 16px;">Please find our purchase order below.</p>
+
+    <div style="${styles.infoBox}">
+      <p style="margin:0 0 12px;font-size:14px;font-weight:600;">📋 Purchase Order #${order.orderNumber}</p>
+      <table style="width:100%;font-size:13px;margin-bottom:12px;">
+        <tr><td style="color:#64748b;">Date:</td><td style="text-align:right;">${new Date(order.orderDate).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}</td></tr>
+        <tr><td style="color:#64748b;">From:</td><td style="text-align:right;font-weight:600;">${businessName}</td></tr>
+        ${order.expectedDelivery ? `<tr><td style="color:#64748b;">Expected:</td><td style="text-align:right;">${new Date(order.expectedDelivery).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' })}</td></tr>` : ''}
+      </table>
+
+      <table style="${styles.detailTable}">
+        <thead><tr style="border-bottom:2px solid #e2e8f0;"><th style="text-align:left;padding:8px 0;font-size:12px;color:#64748b;">Item</th><th style="text-align:center;padding:8px 0;font-size:12px;color:#64748b;">Qty</th><th style="text-align:right;padding:8px 0;font-size:12px;color:#64748b;">Price</th><th style="text-align:right;padding:8px 0;font-size:12px;color:#64748b;">Total</th></tr></thead>
+        <tbody>${itemsHtml}</tbody>
+      </table>
+
+      <table style="width:100%;margin-top:12px;">
+        <tr style="border-top:2px solid #e2e8f0;"><td style="font-weight:700;padding:8px 0;font-size:16px;">Total</td><td style="text-align:right;font-weight:700;font-size:16px;color:#059669;">KSh ${(order.totalAmount || 0).toLocaleString()}</td></tr>
+      </table>
+    </div>
+
+    ${order.notes ? `<p style="font-size:13px;color:#64748b;margin-top:16px;"><strong>Notes:</strong> ${order.notes}</p>` : ''}
+    <p style="font-size:13px;color:#64748b;margin-top:16px;">Please confirm receipt of this order and expected delivery date.</p>
+  `;
+
+  const layout = await baseLayout('', `Purchase Order #${order.orderNumber}`, data.tenantId);
+  return layout.replace('{{content}}', content);
+};
+
+
+module.exports = { saleInvoice, prescriptionReady, expiryAlert, lowStockAlert,purchaseOrder  };
