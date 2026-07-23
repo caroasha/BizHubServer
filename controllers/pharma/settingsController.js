@@ -33,10 +33,34 @@ const updateGeneral = asyncHandler(async (req, res) => {
   Object.assign(settings.general, req.body);
   settings.updatedBy = req.user?.id;
   await settings.save();
+
+  // Sync business name to tenant
+  if (req.body.pharmacyName) {
+    await Tenant.findByIdAndUpdate(req.tenant._id, { businessName: req.body.pharmacyName });
+  }
+  // Sync contact info to tenant
+  if (req.body.phone || req.body.email || req.body.address) {
+    const update = {};
+    if (req.body.phone) update['contact.phone'] = req.body.phone;
+    if (req.body.email) update['contact.email'] = req.body.email;
+    if (req.body.address) update['contact.address'] = req.body.address;
+    if (Object.keys(update).length > 0) {
+      await Tenant.findByIdAndUpdate(req.tenant._id, { $set: update });
+    }
+  }
+
   sendSuccess(res, null, 'Updated');
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
+  // Update tenant owner info
+  const update = {};
+  if (req.body.name) update['owner.name'] = req.body.name;
+  if (req.body.email) update['owner.email'] = req.body.email;
+  if (req.body.phone) update['owner.phone'] = req.body.phone;
+  if (Object.keys(update).length > 0) {
+    await Tenant.findByIdAndUpdate(req.tenant._id, { $set: update });
+  }
   sendSuccess(res, req.body, 'Profile updated');
 });
 
@@ -52,4 +76,12 @@ const updatePreferences = asyncHandler(async (req, res) => {
   sendSuccess(res, null, 'Preferences updated');
 });
 
-module.exports = { getSettings, updateGeneral, updateProfile, updatePassword, updatePreferences };
+const updateNotifications = asyncHandler(async (req, res) => {
+  let settings = await PharmaSettings.findOne({ tenantId: req.tenant._id }) || new PharmaSettings({ tenantId: req.tenant._id });
+  Object.assign(settings.notifications, req.body);
+  settings.updatedBy = req.user?.id;
+  await settings.save();
+  sendSuccess(res, null, 'Notification settings updated');
+});
+
+module.exports = { getSettings, updateGeneral, updateProfile, updatePassword, updatePreferences, updateNotifications };
