@@ -7,7 +7,6 @@ const mpesaService = require('../../services/mpesaService');
 const emailService = require('../../services/emailService');
 const smsService = require('../../services/smsService');
 const auditService = require('../../utils/auditService');
-const env = require('../../config/env');
 const asyncHandler = require('../../utils/asyncHandler');
 const logger = require('../../utils/logger');
 
@@ -17,14 +16,6 @@ const USER_MODEL_MAP = {
     apartment: '../../models/apartment/User',
     electronics: '../../models/electro/User',
     cyber: '../../models/cyber/User',
-};
-
-const MODEL_NAMES = {
-    restaurant: 'RestoUser',
-    pharmacy: 'PharmaUser',
-    apartment: 'ApartmentUser',
-    electronics: 'ElectroUser',
-    cyber: 'CyberUser',
 };
 
 const getUserModel = (businessType) => {
@@ -237,35 +228,53 @@ const processCallback = async (payload, parsed) => {
 const mpesaCallback = asyncHandler(async (req, res) => {
     const payload = req.body;
     const clientIp = getClientIp(req);
+    const checkoutRequestId = payload?.Body?.stkCallback?.CheckoutRequestID;
 
     logger.info('M-Pesa callback received', {
-        checkoutRequestId: payload?.Body?.stkCallback?.CheckoutRequestID,
+        checkoutRequestId,
         resultCode: payload?.Body?.stkCallback?.ResultCode,
         ip: clientIp,
     });
 
-    if (env.isProduction() && !mpesaService.isSafaricomIp(clientIp)) {
-        logger.warn('M-Pesa callback rejected — non-Safaricom IP', { ip: clientIp });
-        return res.status(403).json({ ResultCode: 1, ResultDesc: 'Forbidden' });
+    if (!checkoutRequestId) {
+        logger.warn('Callback without checkoutRequestId — rejecting', { ip: clientIp });
+        return res.status(400).json({ ResultCode: 1, ResultDesc: 'Invalid' });
     }
 
-    const parsed = mpesaService.parseCallback(payload);
+    // Authenticity gate: the CheckoutRequestID must match a Payment we
+    // initiated when we sent the STK Push. Anything else is rejected.
+    const known = await Payment.exists({
+        $or: [
+            { checkoutRequestId },
+            { providerRef: checkoutRequestId },
+        ],
+    });
 
+    if (!known) {
+        logger.warn('Callback rejected — unknown CheckoutRequestID', {
+            checkoutRequestId,
+            ip: clientIp,
+        });
+        return res.status(403).json({ ResultCode: 1, ResultDesc: 'Unknown transaction' });
+    }
+
+    // Acknowledge Safaricom immediately (must be < 5s).
     res.status(200).json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
-    if (!parsed.checkoutRequestId) {
-        logger.warn('Callback without checkoutRequestId', { payload });
+    if (mpesaService.isDuplicateCallback(checkoutRequestId)) {
+        logger.info('Duplicate callback (memory dedupe)', { checkoutRequestId });
         return;
     }
 
-    if (mpesaService.isDuplicateCallback(parsed.checkoutRequestId)) {
-        logger.info('Duplicate callback (memory dedupe)', {
-            checkoutRequestId: parsed.checkoutRequestId,
-        });
-        return;
-    }
-
-    Promise.resolve().then(() => processCallback(payload, parsed));
+    // Process asynchronously so we don't block Safaricom's HTTP client.
+    setImmediate(() => {
+        processCallback(payload, mpesaService.parseCallback(payload)).catch((err) =>
+            logger.error('processCallback threw', {
+                error: err.message,
+                checkoutRequestId,
+            })
+        );
+    });
 });
 
 const mpesaTimeout = asyncHandler(async (req, res) => {
