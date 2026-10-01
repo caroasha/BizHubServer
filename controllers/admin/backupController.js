@@ -7,8 +7,6 @@ const asyncHandler = require('../../utils/asyncHandler');
 const { sendSuccess, sendPaginated } = require('../../utils/response');
 const ApiError = require('../../utils/ApiError');
 const upload = require('../../middleware/global/upload');
-const path = require('path');
-const fs = require('fs');
 
 const getAll = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20 } = req.query;
@@ -79,13 +77,13 @@ const createNow = asyncHandler(async (req, res) => {
   const type = tenantId ? 'tenant' : 'full';
 
   const result = await backupService.createBackup(tenantId || null, module || null);
-
   if (!result.success) throw new ApiError(500, result.error || 'Backup failed', 'BACKUP_FAILED');
 
   const backup = await Backup.create({
     tenantId: tenantId || null,
     filename: result.filename,
-    filepath: result.filepath,
+    publicId: result.publicId,
+    url: result.url,
     size: result.size,
     type,
     module: module || null,
@@ -100,7 +98,7 @@ const createNow = asyncHandler(async (req, res) => {
     module: 'admin',
     resource: 'Backup',
     resourceId: backup._id,
-    details: { type, tenantId },
+    details: { type, tenantId, url: result.url },
   });
 
   const autoEmail = await Settings.findOne({ key: 'backup_auto_email' });
@@ -108,7 +106,14 @@ const createNow = asyncHandler(async (req, res) => {
     await emailService.send({
       to: req.admin.email,
       subject: `Backup Created - ${result.filename}`,
-      html: `<h1>Backup Created</h1><p><strong>File:</strong> ${result.filename}</p><p><strong>Size:</strong> ${result.sizeFormatted}</p><p><strong>Collections:</strong> ${result.collections}</p><p><strong>Documents:</strong> ${result.documents}</p>`,
+      html: `
+        <h1>Backup Created</h1>
+        <p><strong>File:</strong> ${result.filename}</p>
+        <p><strong>Size:</strong> ${result.sizeFormatted}</p>
+        <p><strong>Collections:</strong> ${result.collections}</p>
+        <p><strong>Documents:</strong> ${result.documents}</p>
+        <p><strong>Download:</strong> <a href="${result.url}">${result.url}</a></p>
+      `,
     });
   }
 
@@ -116,6 +121,7 @@ const createNow = asyncHandler(async (req, res) => {
     backup: {
       id: backup._id,
       filename: result.filename,
+      url: result.url,
       size: result.sizeFormatted,
       collections: result.collections,
       documents: result.documents,
@@ -127,14 +133,21 @@ const createNow = asyncHandler(async (req, res) => {
 
 const uploadBackup = asyncHandler(async (req, res) => {
   const uploadMiddleware = upload.single('backup');
-  
+
   uploadMiddleware(req, res, async (err) => {
     if (err) throw new ApiError(400, err.message, 'UPLOAD_ERROR');
     if (!req.file) throw new ApiError(400, 'Backup file required');
 
-    const result = await backupService.restoreFromUpload(req.file.path);
+    // Prefer buffer (multer memory storage); fall back to path for disk storage
+    const input = req.file.buffer || req.file.path;
+    const result = await backupService.restoreFromUpload(input);
 
-    fs.unlinkSync(req.file.path);
+    // If multer wrote to disk, clean up (best-effort)
+    if (req.file.path) {
+      try {
+        require('fs').unlinkSync(req.file.path);
+      } catch { /* ignore */ }
+    }
 
     if (!result.success) throw new ApiError(400, result.error || 'Restore failed', 'RESTORE_FAILED');
 
@@ -153,8 +166,11 @@ const uploadBackup = asyncHandler(async (req, res) => {
 const restore = asyncHandler(async (req, res) => {
   const backup = await Backup.findById(req.params.id);
   if (!backup) throw new ApiError(404, 'Backup not found', 'BACKUP_NOT_FOUND');
+  if (!backup.publicId) {
+    throw new ApiError(400, 'This backup has no Cloudinary reference (legacy record)', 'NO_CLOUDINARY_REF');
+  }
 
-  const result = await backupService.restoreBackup(backup.filename);
+  const result = await backupService.restoreBackup(backup.publicId);
   if (!result.success) throw new ApiError(500, result.error || 'Restore failed', 'RESTORE_FAILED');
 
   await AuditLog.create({
@@ -171,13 +187,25 @@ const restore = asyncHandler(async (req, res) => {
 });
 
 const download = asyncHandler(async (req, res) => {
-  const backup = await Backup.findById(req.params.id);
+  const backup = await Backup.findById(req.params.id).lean();
   if (!backup) throw new ApiError(404, 'Backup not found', 'BACKUP_NOT_FOUND');
 
-  const filepath = backupService.getBackupFilePath(backup.filename);
-  if (!filepath) throw new ApiError(404, 'Backup file not found on disk', 'FILE_NOT_FOUND');
+  // Prefer proxying through the API so browser gets a Content-Disposition header
+  if (!backup.publicId) {
+    if (backup.url) return res.redirect(backup.url);
+    throw new ApiError(404, 'Backup file not available', 'FILE_NOT_FOUND');
+  }
 
-  res.download(filepath, backup.filename);
+  try {
+    const buffer = await backupService.fetchFromCloudinary(backup.publicId);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${backup.filename}"`);
+    return res.send(buffer);
+  } catch (err) {
+    // Fallback: if the proxy download fails, redirect to the Cloudinary URL
+    if (backup.url) return res.redirect(backup.url);
+    throw new ApiError(500, `Download failed: ${err.message}`, 'DOWNLOAD_FAILED');
+  }
 });
 
 const sendToEmail = asyncHandler(async (req, res) => {
@@ -186,14 +214,18 @@ const sendToEmail = asyncHandler(async (req, res) => {
 
   const backup = await Backup.findById(req.params.id);
   if (!backup) throw new ApiError(404, 'Backup not found', 'BACKUP_NOT_FOUND');
-
-  const filepath = backupService.getBackupFilePath(backup.filename);
-  if (!filepath) throw new ApiError(404, 'Backup file not found on disk', 'FILE_NOT_FOUND');
+  if (!backup.url) throw new ApiError(400, 'Backup has no download URL', 'NO_URL');
 
   await emailService.send({
     to: email,
     subject: `Backup - ${backup.filename}`,
-    html: `<h1>Backup File</h1><p><strong>File:</strong> ${backup.filename}</p><p><strong>Size:</strong> ${(backup.size / 1024).toFixed(2)} KB</p><p><strong>Created:</strong> ${backup.createdAt}</p><p>Download the attached file to restore.</p>`,
+    html: `
+      <h1>Backup Ready</h1>
+      <p><strong>File:</strong> ${backup.filename}</p>
+      <p><strong>Size:</strong> ${(backup.size / 1024).toFixed(2)} KB</p>
+      <p><strong>Created:</strong> ${backup.createdAt}</p>
+      <p><a href="${backup.url}">Download backup</a></p>
+    `,
   });
 
   await AuditLog.create({
@@ -206,14 +238,16 @@ const sendToEmail = asyncHandler(async (req, res) => {
     details: { email },
   });
 
-  sendSuccess(res, null, `Backup sent to ${email}`);
+  sendSuccess(res, null, `Backup link sent to ${email}`);
 });
 
 const remove = asyncHandler(async (req, res) => {
   const backup = await Backup.findById(req.params.id);
   if (!backup) throw new ApiError(404, 'Backup not found', 'BACKUP_NOT_FOUND');
 
-  backupService.deleteBackup(backup.filename);
+  if (backup.publicId) {
+    await backupService.deleteBackup(backup.publicId);
+  }
   await backup.deleteOne();
 
   await AuditLog.create({

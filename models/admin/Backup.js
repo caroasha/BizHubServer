@@ -12,9 +12,20 @@ const backupSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  // Legacy — kept optional for older docs. New backups leave it null.
   filepath: {
     type: String,
-    required: true,
+    default: null,
+  },
+  // Cloudinary
+  publicId: {
+    type: String,
+    default: null,
+    index: true,
+  },
+  url: {
+    type: String,
+    default: null,
   },
   size: {
     type: Number,
