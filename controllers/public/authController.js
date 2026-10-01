@@ -634,9 +634,7 @@ const adminLogin = asyncHandler(async (req, res) => {
     );
 });
 
-/* ═══════════════════════════════════════════════════════
- * EXPORTS
- * ═══════════════════════════════════════════════════════ */
+
 module.exports = {
     login,
     logout,
