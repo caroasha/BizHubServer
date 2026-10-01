@@ -1,0 +1,15 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/electro/saleController');
+const auth = require('../../middleware/electro/auth');
+const sub = require('../../middleware/electro/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getAll);
+router.get('/stats', ctrl.getStats);
+router.get('/:id', ctrl.getById);
+router.post('/', ctrl.create);
+router.post('/invoice', ctrl.createInvoice);
+router.put('/:id', ctrl.update);
+router.put('/:id/pay', ctrl.markAsPaid);
+router.put('/:id/cancel', ctrl.cancel);
+router.post('/:id/email', ctrl.sendInvoiceEmail);
+module.exports = router;

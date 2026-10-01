@@ -1,0 +1,13 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/cyber/serviceSaleController');
+const auth = require('../../middleware/cyber/auth');
+const sub = require('../../middleware/cyber/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getAll);
+router.post('/', ctrl.create);
+router.post('/invoice', ctrl.createInvoice);
+router.put('/:id', ctrl.update);
+router.put('/:id/pay', ctrl.markAsPaid);
+router.put('/:id/cancel', ctrl.cancel);
+router.post('/:id/email', ctrl.sendInvoiceEmail);
+module.exports = router;

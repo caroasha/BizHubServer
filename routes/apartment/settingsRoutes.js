@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/apartment/settingsController');
+const auth = require('../../middleware/apartment/auth');
+const sub = require('../../middleware/apartment/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getSettings);
+router.put('/general', ctrl.updateGeneral);
+router.put('/profile', ctrl.updateProfile);
+router.put('/password', ctrl.updatePassword);
+router.put('/preferences', ctrl.updatePreferences);
+module.exports = router;

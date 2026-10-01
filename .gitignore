@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+logs/*
+!logs/.gitkeep
+
+# Runtime data
+backups/*
+!backups/.gitkeep
+tmp/*
+!tmp/.gitkeep
+uploads/*
+!uploads/.gitkeep
+public/downloads/*
+!public/downloads/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Certificates
+*.pem
+*.key
+*.crt
+
+# Cloudinary
+.cloudinary

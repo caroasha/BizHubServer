@@ -1,0 +1,11 @@
+const router = require('express').Router();
+const ctrl = require('../../controllers/apartment/leaseController');
+const auth = require('../../middleware/apartment/auth');
+const sub = require('../../middleware/apartment/subscriptionCheck');
+router.use(auth, sub);
+router.get('/', ctrl.getAll);
+router.get('/:id', ctrl.getById);
+router.post('/', ctrl.create);
+router.put('/:id', ctrl.update);
+router.put('/:id/terminate', ctrl.terminate);
+module.exports = router;

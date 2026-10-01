@@ -1,0 +1,11 @@
+const router = require('express').Router();
+router.use('/computers', require('./computerRoutes'));
+router.use('/sessions', require('./sessionRoutes'));
+router.use('/services', require('./serviceRoutes'));
+router.use('/sales', require('./serviceSaleRoutes'));
+router.use('/packages', require('./packageRoutes'));
+router.use('/customers', require('./customerRoutes'));
+router.use('/reports', require('./reportRoutes'));
+router.use('/settings', require('./settingsRoutes'));
+router.use('/staff', require('./staffRoutes'));
+module.exports = router;
