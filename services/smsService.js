@@ -7,6 +7,8 @@ let settingsCache = null;
 let cacheAt = 0;
 const CACHE_MS = 60_000;
 
+const SMS_MAX_LENGTH = 160;
+
 const loadSettings = async () => {
   if (settingsCache && Date.now() - cacheAt < CACHE_MS) return settingsCache;
   try {
@@ -66,6 +68,26 @@ const renderTemplate = async (templates, name, data) => {
   throw new Error('Invalid SMS template');
 };
 
+/**
+ * Trim a message to SMS_MAX_LENGTH without chopping the URL mid-way
+ * when there's a link at the end.
+ */
+const clampMessage = (message) => {
+  if (message.length <= SMS_MAX_LENGTH) return message;
+
+  const urlMatch = message.match(/https?:\/\/\S+$/);
+  if (urlMatch) {
+    const url = urlMatch[0];
+    const prefix = message.slice(0, message.length - url.length);
+    const remaining = SMS_MAX_LENGTH - url.length - 1; // 1 for the space
+    if (remaining > 10) {
+      return `${prefix.slice(0, remaining).trimEnd()} ${url}`;
+    }
+  }
+
+  return message.slice(0, SMS_MAX_LENGTH - 3).trimEnd() + '...';
+};
+
 const sendViaBrevo = async ({ to, message }) => {
   const config = await getConfig();
   try {
@@ -89,8 +111,7 @@ const sendViaBrevo = async ({ to, message }) => {
 
 /**
  * HDM Bridge expects { from, to, content }.
- * (Previously sent `message` — HDM rejected with VALIDATION_001:
- *  "to and content are required".)
+ * Hard limit: content length <= 160 chars.
  */
 const sendViaHDM = async ({ to, message }) => {
   const config = await getConfig();
@@ -101,8 +122,8 @@ const sendViaHDM = async ({ to, message }) => {
       content: message,
     };
     const res = await hdmBridgeClient.post('/sms/send', payload);
-    logger.info('SMS sent via HDM Bridge', { to, messageId: res.data?.id });
-    return { success: true, messageId: res.data?.id, provider: 'hdmBridge' };
+    logger.info('SMS sent via HDM Bridge', { to, messageId: res.data?.id || res.data?.messageId });
+    return { success: true, messageId: res.data?.id || res.data?.messageId, provider: 'hdmBridge' };
   } catch (err) {
     logger.error('HDM Bridge SMS failed', {
       to,
@@ -139,9 +160,10 @@ const send = async (...args) => {
   }
 
   let message = params.message;
-  if (message.length > 480) {
-    logger.warn('SMS message truncated', { to, original: message.length });
-    message = message.substring(0, 477) + '...';
+  if (message.length > SMS_MAX_LENGTH) {
+    const original = message.length;
+    message = clampMessage(message);
+    logger.warn('SMS message truncated', { to, original, final: message.length });
   }
 
   const payload = { to, message };
@@ -187,4 +209,5 @@ module.exports = {
   verifyProvider,
   getConfig,
   normalizePhone,
+  SMS_MAX_LENGTH,
 };

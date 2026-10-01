@@ -58,6 +58,30 @@ const normalizeParams = (args) => {
 };
 
 /* ─────────────────────────────────────────────────────────────
+ * HTML → plain text (for textBody — required by HDM Bridge)
+ * ───────────────────────────────────────────────────────────── */
+const stripHtml = (h) =>
+    String(h || '')
+        .replace(/<style[\s\S]*?<\/style>/gi, '')
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        .replace(/<head[\s\S]*?<\/head>/gi, '')
+        .replace(/<!--[\s\S]*?-->/g, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+/* ─────────────────────────────────────────────────────────────
  * Template renderer — throws if template name not found.
  * ───────────────────────────────────────────────────────────── */
 const renderTemplate = async (templates, name, data) => {
@@ -99,6 +123,7 @@ const sendViaBrevo = async ({ to, subject, html, cc, bcc, replyTo, attachments }
                 : [{ email: to }],
             subject,
             htmlContent: html,
+            textContent: stripHtml(html),
         };
 
         if (cc) {
@@ -145,35 +170,30 @@ const sendViaBrevo = async ({ to, subject, html, cc, bcc, replyTo, attachments }
 
 /* ─────────────────────────────────────────────────────────────
  * HDM Bridge
+ *
+ * Docs: POST {baseUrl}/emails/send
+ * Required:
+ *   - from, fromName, to, subject, htmlBody, textBody
+ *   - `to` is a PLAIN STRING (not an array of objects)
+ *   - both htmlBody AND textBody must be present for delivery
  * ───────────────────────────────────────────────────────────── */
 const sendViaHDM = async ({ to, subject, html, cc, bcc, replyTo, attachments }) => {
     const config = await getConfig();
     try {
-        const toArray = Array.isArray(to)
-            ? to.map((e) => ({ email: e }))
-            : [{ email: to }];
+        const toValue = Array.isArray(to) ? to[0] : to;
 
         const payload = {
             from: config.fromEmail,
             fromName: config.fromName,
-            to: toArray,
+            to: toValue,
             subject,
             htmlBody: html,
+            textBody: stripHtml(html),
         };
 
-        if (cc) {
-            payload.cc = Array.isArray(cc)
-                ? cc.map((e) => ({ email: e }))
-                : [{ email: cc }];
-        }
-        if (bcc) {
-            payload.bcc = Array.isArray(bcc)
-                ? bcc.map((e) => ({ email: e }))
-                : [{ email: bcc }];
-        }
-        if (replyTo) {
-            payload.replyTo = { email: replyTo };
-        }
+        if (cc) payload.cc = Array.isArray(cc) ? cc[0] : cc;
+        if (bcc) payload.bcc = Array.isArray(bcc) ? bcc[0] : bcc;
+        if (replyTo) payload.replyTo = replyTo;
         if (attachments?.length) {
             payload.attachments = attachments.map((a) => ({
                 filename: a.filename,
@@ -184,12 +204,20 @@ const sendViaHDM = async ({ to, subject, html, cc, bcc, replyTo, attachments }) 
         }
 
         const res = await hdmBridgeClient.post('/emails/send', payload);
+
         logger.info('Email sent via HDM Bridge', {
             to,
             subject,
-            messageId: res.data?.id,
+            messageId: res.data?.messageId || res.data?.id,
+            status: res.data?.status,
         });
-        return { success: true, messageId: res.data?.id, provider: 'hdmBridge' };
+
+        return {
+            success: true,
+            messageId: res.data?.messageId || res.data?.id,
+            status: res.data?.status,
+            provider: 'hdmBridge',
+        };
     } catch (err) {
         logger.error('HDM Bridge email failed', {
             to,

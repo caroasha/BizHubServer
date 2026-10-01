@@ -8,113 +8,113 @@ const fmt = (n) => Number(n || 0).toLocaleString('en-KE');
 
 /* ============ REGISTRATION ============ */
 
-const tenantRegistrationPending = ({ name, businessName, planName, amount, invoiceNumber }) =>
-  `${APP_NAME()}: Hi ${name}, registration for ${businessName} received. Pay KES ${fmt(amount)} for ${planName} plan (Invoice ${invoiceNumber}) to activate. ${CLIENT_URL()}/invoice/${invoiceNumber}`;
+const tenantRegistrationPending = ({ name, businessName, amount, invoiceNumber }) =>
+  `${APP_NAME()}: ${businessName} reg received. Pay KES ${fmt(amount)} (Inv ${invoiceNumber}) to activate: ${CLIENT_URL()}/invoice/${invoiceNumber}`;
 
-const tenantAutoRejected = ({ name, businessName, planName }) =>
-  `${APP_NAME()}: Hi ${name}, registration for ${businessName} (${planName}) expired - no payment received. Register again: ${CLIENT_URL()}/pricing`;
+const tenantAutoRejected = ({ businessName }) =>
+  `${APP_NAME()}: Registration for ${businessName} expired (no payment). Register again: ${CLIENT_URL()}/pricing`;
 
 const tenantApproved = ({ name, businessName, planName }) =>
-  `${APP_NAME()}: Congratulations ${name}! ${businessName} is now active on ${planName} plan. Login: ${CLIENT_URL()}/login`;
+  `${APP_NAME()}: Congrats ${name}! ${businessName} is active on ${planName}. Login: ${CLIENT_URL()}/login`;
 
-const tenantWelcome = ({ name, businessName }) =>
-  `${APP_NAME()}: Welcome ${name}! ${businessName} is ready. Explore your dashboard: ${CLIENT_URL()}/login`;
+const tenantWelcome = ({ name }) =>
+  `${APP_NAME()}: Welcome ${name}! Your account is ready. Login: ${CLIENT_URL()}/login`;
 
-const tenantRejected = ({ name, businessName, reason }) =>
-  `${APP_NAME()}: Hi ${name}, registration for ${businessName} was not approved.${reason ? ` Reason: ${reason}` : ''} Contact support for help.`;
+const tenantRejected = ({ businessName, reason }) =>
+  `${APP_NAME()}: ${businessName} registration not approved.${reason ? ` ${reason}` : ''} Contact support.`;
 
 const tenantSuspended = ({ businessName, reason }) =>
-  `${APP_NAME()}: ${businessName} account has been suspended.${reason ? ` Reason: ${reason}` : ''} Contact support.`;
+  `${APP_NAME()}: ${businessName} suspended.${reason ? ` ${reason}` : ''} Contact support.`;
 
 const tenantReactivated = ({ name, businessName }) =>
-  `${APP_NAME()}: Welcome back ${name}! ${businessName} has been reactivated. Login: ${CLIENT_URL()}/login`;
+  `${APP_NAME()}: Welcome back ${name}! ${businessName} is active. Login: ${CLIENT_URL()}/login`;
 
 /* ============ PAYMENT ============ */
 
-const tenantPaymentReceived = ({ name, businessName, invoiceNumber, amount }) =>
-  `${APP_NAME()}: Payment received! Hi ${name}, KES ${fmt(amount)} for ${businessName} (Invoice ${invoiceNumber}) confirmed. Account under review.`;
+const tenantPaymentReceived = ({ businessName, invoiceNumber, amount }) =>
+  `${APP_NAME()}: KES ${fmt(amount)} received for ${businessName} (Inv ${invoiceNumber}). Account under review.`;
 
-const tenantInvoiceReminder = ({ name, invoiceNumber, amount, minutesLeft }) =>
-  `${APP_NAME()}: Reminder - Invoice ${invoiceNumber} (KES ${fmt(amount)}) due${minutesLeft ? ` in ${minutesLeft} minutes` : ' soon'}. Pay now to avoid cancellation.`;
+const tenantInvoiceReminder = ({ invoiceNumber, amount, minutesLeft }) =>
+  `${APP_NAME()}: Invoice ${invoiceNumber} (KES ${fmt(amount)}) due${minutesLeft ? ` in ${minutesLeft}min` : ' soon'}. Pay now to avoid cancellation.`;
 
 const tenantInvoiceExpired = ({ invoiceNumber, businessName }) =>
-  `${APP_NAME()}: Invoice ${invoiceNumber} for ${businessName} has expired. Register again at ${CLIENT_URL()}/pricing`;
+  `${APP_NAME()}: Invoice ${invoiceNumber} for ${businessName} expired. Register again: ${CLIENT_URL()}/pricing`;
 
-const tenantPaymentReceipt = ({ businessName, invoiceNumber, amount, reference }) =>
-  `${APP_NAME()}: Receipt - ${businessName}, Invoice ${invoiceNumber}, KES ${fmt(amount)} paid. Ref: ${reference || 'N/A'}. Thank you.`;
+const tenantPaymentReceipt = ({ invoiceNumber, amount, reference }) =>
+  `${APP_NAME()}: Receipt - Inv ${invoiceNumber}, KES ${fmt(amount)} paid. Ref: ${reference || 'N/A'}. Thank you.`;
 
 /* ============ RENEWAL ============ */
 
-const tenantRenewalRequested = ({ name, businessName, planName, amount, invoiceNumber }) =>
-  `${APP_NAME()}: Hi ${name}, renewal invoice ${invoiceNumber} created for ${businessName}. Pay KES ${fmt(amount)} for ${planName} plan. ${CLIENT_URL()}/invoice/${invoiceNumber}`;
+const tenantRenewalRequested = ({ businessName, amount, invoiceNumber }) =>
+  `${APP_NAME()}: Renewal invoice ${invoiceNumber} for ${businessName}. Pay KES ${fmt(amount)}: ${CLIENT_URL()}/invoice/${invoiceNumber}`;
 
 const tenantRenewalApproved = ({ businessName, planName, newExpiry }) =>
-  `${APP_NAME()}: Renewal approved! ${businessName} is active on ${planName} until ${newExpiry}. Thank you.`;
+  `${APP_NAME()}: ${businessName} renewed on ${planName} until ${newExpiry}. Thank you.`;
 
 const tenantRenewalRejected = ({ businessName, reason }) =>
-  `${APP_NAME()}: Renewal for ${businessName} was not approved.${reason ? ` Reason: ${reason}` : ''} Try again: ${CLIENT_URL()}/renewal`;
+  `${APP_NAME()}: Renewal for ${businessName} not approved.${reason ? ` ${reason}` : ''} Try again: ${CLIENT_URL()}/renewal`;
 
 const tenantSubscriptionExpired = ({ businessName, planName }) =>
-  `${APP_NAME()}: ${businessName} subscription (${planName}) expired. Renew now: ${CLIENT_URL()}/renewal`;
+  `${APP_NAME()}: ${businessName} (${planName}) expired. Renew: ${CLIENT_URL()}/renewal`;
 
 const tenantSubscriptionExpiring = ({ businessName, daysLeft }) =>
-  `${APP_NAME()}: ${businessName} subscription expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}. Renew: ${CLIENT_URL()}/renewal`;
+  `${APP_NAME()}: ${businessName} expires in ${daysLeft}d. Renew: ${CLIENT_URL()}/renewal`;
 
 /* ============ UPGRADE ============ */
 
 const tenantUpgradeRequested = ({ businessName, oldPlan, newPlan, amount, invoiceNumber }) =>
-  `${APP_NAME()}: Upgrade invoice ${invoiceNumber} for ${businessName}. ${oldPlan} -> ${newPlan}, KES ${fmt(amount)}. ${CLIENT_URL()}/invoice/${invoiceNumber}`;
+  `${APP_NAME()}: Upgrade invoice ${invoiceNumber} for ${businessName}. ${oldPlan}->${newPlan}, KES ${fmt(amount)}: ${CLIENT_URL()}/invoice/${invoiceNumber}`;
 
 const tenantUpgradeApproved = ({ businessName, newPlan }) =>
-  `${APP_NAME()}: Upgrade approved! ${businessName} is now on ${newPlan} plan. Login: ${CLIENT_URL()}/login`;
+  `${APP_NAME()}: ${businessName} upgraded to ${newPlan}. Login: ${CLIENT_URL()}/login`;
 
-const tenantUpgradeRejected = ({ businessName, reason }) =>
-  `${APP_NAME()}: Upgrade for ${businessName} not approved.${reason ? ` Reason: ${reason}` : ''}`;
+const tenantUpgradeRejected = ({ businessName }) =>
+  `${APP_NAME()}: Upgrade for ${businessName} not approved. Contact support.`;
 
 /* ============ SECURITY ============ */
 
 const newDeviceLogin = ({ name, device, ip }) =>
-  `${APP_NAME()}: Hi ${name}, new login detected on ${device || 'unknown device'} (IP ${ip || 'N/A'}). Not you? Reset password immediately.`;
+  `${APP_NAME()}: ${name}, new login on ${device || 'unknown device'} (IP ${ip || 'N/A'}). Not you? Reset password now.`;
 
 const suspiciousActivity = ({ name, attempts }) =>
-  `${APP_NAME()}: Hi ${name}, ${attempts} failed login attempts detected. If this wasn't you, reset your password now.`;
+  `${APP_NAME()}: ${name}, ${attempts} failed logins detected. Reset your password if this wasn't you.`;
 
 const passwordChangedAlert = ({ name }) =>
-  `${APP_NAME()}: Hi ${name}, your password was changed. If this wasn't you, contact support immediately.`;
+  `${APP_NAME()}: ${name}, your password was changed. If this wasn't you, contact support now.`;
 
 const emailChangedAlert = ({ name, newEmail }) =>
-  `${APP_NAME()}: Hi ${name}, your account email was changed to ${newEmail}. If this wasn't you, contact support.`;
+  `${APP_NAME()}: ${name}, email changed to ${newEmail}. If this wasn't you, contact support.`;
 
-const accountLocked = ({ name, unlockAt }) =>
-  `${APP_NAME()}: Hi ${name}, your account is locked due to failed logins.${unlockAt ? ` Unlocks ${unlockAt}.` : ''} Contact support.`;
+const accountLocked = ({ name }) =>
+  `${APP_NAME()}: ${name}, account locked due to failed logins. Contact support.`;
 
-/* ============ OTP & VERIFICATION ============ */
+/* ============ OTP ============ */
 
 const otpVerification = ({ code }) =>
-  `${code} is your ${APP_NAME()} verification code. Valid 5 minutes. Do not share.`;
+  `${code} is your ${APP_NAME()} verification code. Valid 5 min. Do not share.`;
 
 const otpLogin = ({ code }) =>
-  `${code} is your ${APP_NAME()} login code. Valid 5 minutes.`;
+  `${code} is your ${APP_NAME()} login code. Valid 5 min.`;
 
 const otpPasswordReset = ({ code }) =>
-  `${code} is your ${APP_NAME()} password reset code. Valid 5 minutes.`;
+  `${code} is your ${APP_NAME()} password reset code. Valid 5 min.`;
 
 const emailVerify = ({ code }) =>
-  `${code} is your ${APP_NAME()} email verification code. Valid 10 minutes.`;
+  `${code} is your ${APP_NAME()} email verification code. Valid 10 min.`;
 
 /* ============ ADMIN ============ */
 
 const adminNewRegistration = ({ businessName, ownerName, planName, amount }) =>
-  `${APP_NAME()} ADMIN: New registration - ${businessName} by ${ownerName}. Plan: ${planName}, KES ${fmt(amount)}. Review: ${ADMIN_URL()}/approvals`;
+  `${APP_NAME()} ADMIN: New reg - ${businessName} by ${ownerName}. ${planName}, KES ${fmt(amount)}. ${ADMIN_URL()}/approvals`;
 
-const adminPaymentReceived = ({ businessName, ownerName, amount, reference }) =>
-  `${APP_NAME()} ADMIN: Payment - ${businessName} (${ownerName}), KES ${fmt(amount)}. Ref: ${reference || 'N/A'}. Review: ${ADMIN_URL()}/approvals`;
+const adminPaymentReceived = ({ businessName, amount, reference }) =>
+  `${APP_NAME()} ADMIN: Payment - ${businessName}, KES ${fmt(amount)}. Ref: ${reference || 'N/A'}. ${ADMIN_URL()}/approvals`;
 
 const adminRenewalRequest = ({ businessName, planName, amount }) =>
-  `${APP_NAME()} ADMIN: Renewal - ${businessName}, ${planName}, KES ${fmt(amount)}. Review: ${ADMIN_URL()}/approvals`;
+  `${APP_NAME()} ADMIN: Renewal - ${businessName}, ${planName}, KES ${fmt(amount)}. ${ADMIN_URL()}/approvals`;
 
 const adminUpgradeRequest = ({ businessName, oldPlan, newPlan, amount }) =>
-  `${APP_NAME()} ADMIN: Upgrade - ${businessName}, ${oldPlan} -> ${newPlan}, KES ${fmt(amount)}. Review: ${ADMIN_URL()}/approvals`;
+  `${APP_NAME()} ADMIN: Upgrade - ${businessName} ${oldPlan}->${newPlan}, KES ${fmt(amount)}. ${ADMIN_URL()}/approvals`;
 
 const adminSystemAlert = ({ level, title, message }) =>
   `${APP_NAME()} ADMIN [${(level || 'INFO').toUpperCase()}]: ${title || 'Alert'}${message ? ` - ${message}` : ''}`;
@@ -122,93 +122,90 @@ const adminSystemAlert = ({ level, title, message }) =>
 /* ============ SUPPORT ============ */
 
 const supportTicketCreated = ({ ticketId, subject }) =>
-  `${APP_NAME()}: Support ticket #${ticketId} received - "${subject}". We'll respond shortly.`;
+  `${APP_NAME()}: Ticket #${ticketId} received - "${subject}". We'll respond shortly.`;
 
-const supportTicketResolved = ({ ticketId, subject }) =>
-  `${APP_NAME()}: Ticket #${ticketId} resolved - "${subject}". Thank you.`;
+const supportTicketResolved = ({ ticketId }) =>
+  `${APP_NAME()}: Ticket #${ticketId} resolved. Thank you.`;
 
-/* ============ RESTAURANT MODULE ============ */
+/* ============ RESTO ============ */
 
 const orderConfirmed = ({ orderNo, businessName, total }) =>
-  `${APP_NAME()}: Order #${orderNo} at ${businessName} confirmed. Total: KES ${fmt(total)}. We'll notify you when ready.`;
+  `${APP_NAME()}: Order #${orderNo} at ${businessName} confirmed. KES ${fmt(total)}.`;
 
 const orderReady = ({ orderNo, businessName }) =>
-  `${APP_NAME()}: Order #${orderNo} at ${businessName} is ready for pickup!`;
+  `${APP_NAME()}: Order #${orderNo} at ${businessName} is ready!`;
 
 const restoLowStock = ({ businessName, itemName, stockLeft }) =>
-  `${APP_NAME()}: Low stock - ${itemName} at ${businessName} has ${stockLeft} left. Reorder soon.`;
+  `${APP_NAME()}: Low stock - ${itemName} at ${businessName} (${stockLeft} left). Reorder soon.`;
 
-/* ============ PHARMA MODULE ============ */
+/* ============ PHARMA ============ */
 
-const expiryAlert7Days = ({ businessName, medicineName, expiryDate }) =>
-  `${APP_NAME()}: Expiry - ${medicineName} at ${businessName} expires ${expiryDate} (7 days). Clear stock.`;
+const expiryAlert7Days = ({ medicineName, expiryDate }) =>
+  `${APP_NAME()}: ${medicineName} expires ${expiryDate} (7 days). Clear stock.`;
 
-const expiryAlertToday = ({ businessName, medicineName }) =>
-  `${APP_NAME()} URGENT: ${medicineName} at ${businessName} expires TODAY. Remove from stock immediately.`;
+const expiryAlertToday = ({ medicineName }) =>
+  `${APP_NAME()} URGENT: ${medicineName} expires TODAY. Remove from stock.`;
 
 const prescriptionReady = ({ prescriptionNo, businessName }) =>
-  `${APP_NAME()}: Prescription #${prescriptionNo} is ready for pickup at ${businessName}.`;
+  `${APP_NAME()}: Prescription #${prescriptionNo} ready at ${businessName}.`;
 
 const pharmaLowStock = ({ businessName, itemName, stockLeft }) =>
-  `${APP_NAME()}: Low stock - ${itemName} at ${businessName} has ${stockLeft} left. Reorder soon.`;
+  `${APP_NAME()}: Low stock - ${itemName} at ${businessName} (${stockLeft} left).`;
 
-/* ============ APARTMENT MODULE ============ */
+/* ============ APARTMENT ============ */
 
-const rentReminder = ({ unitNumber, amount, dueDate, businessName }) =>
-  `${APP_NAME()}: Rent for ${unitNumber} (KES ${fmt(amount)}) at ${businessName} due ${dueDate}. Pay on time.`;
+const rentReminder = ({ unitNumber, amount, dueDate }) =>
+  `${APP_NAME()}: Rent for ${unitNumber} (KES ${fmt(amount)}) due ${dueDate}.`;
 
-const rentDueToday = ({ unitNumber, amount, businessName }) =>
-  `${APP_NAME()}: Rent for ${unitNumber} (KES ${fmt(amount)}) at ${businessName} due TODAY.`;
+const rentDueToday = ({ unitNumber, amount }) =>
+  `${APP_NAME()}: Rent for ${unitNumber} (KES ${fmt(amount)}) due TODAY.`;
 
-const rentOverdue = ({ unitNumber, amount, daysOverdue, businessName }) =>
-  `${APP_NAME()} OVERDUE: Rent for ${unitNumber} (KES ${fmt(amount)}) at ${businessName} is ${daysOverdue} days late.`;
+const rentOverdue = ({ unitNumber, amount, daysOverdue }) =>
+  `${APP_NAME()}: OVERDUE rent for ${unitNumber} (KES ${fmt(amount)}), ${daysOverdue}d late.`;
 
 const rentPaymentReceived = ({ unitNumber, amount, month, receiptNo }) =>
-  `${APP_NAME()}: Rent received - ${unitNumber}, KES ${fmt(amount)} for ${month}. Receipt: ${receiptNo}. Thank you.`;
+  `${APP_NAME()}: Rent received - ${unitNumber}, KES ${fmt(amount)} for ${month}. Receipt ${receiptNo}.`;
 
-const leaseExpiring = ({ unitNumber, expiryDate, businessName }) =>
-  `${APP_NAME()}: Lease for ${unitNumber} at ${businessName} expires ${expiryDate}. Contact us to renew.`;
+const leaseExpiring = ({ unitNumber, expiryDate }) =>
+  `${APP_NAME()}: Lease for ${unitNumber} expires ${expiryDate}. Contact us to renew.`;
 
-const maintenanceScheduled = ({ unitNumber, issue, scheduledDate, businessName }) =>
-  `${APP_NAME()}: Maintenance for ${unitNumber} (${issue}) at ${businessName} scheduled ${scheduledDate}.`;
+const maintenanceScheduled = ({ unitNumber, issue, scheduledDate }) =>
+  `${APP_NAME()}: Maintenance for ${unitNumber} (${issue}) scheduled ${scheduledDate}.`;
 
-const maintenanceCompleted = ({ unitNumber, issue, businessName }) =>
-  `${APP_NAME()}: Maintenance completed - ${unitNumber} (${issue}) at ${businessName} resolved.`;
+const maintenanceCompleted = ({ unitNumber, issue }) =>
+  `${APP_NAME()}: Maintenance for ${unitNumber} (${issue}) completed.`;
 
-/* ============ ELECTRO MODULE ============ */
+/* ============ ELECTRO ============ */
 
 const repairReady = ({ device, repairNo, businessName }) =>
-  `${APP_NAME()}: Your ${device} (Repair #${repairNo}) is ready for collection at ${businessName}.`;
+  `${APP_NAME()}: ${device} (Repair #${repairNo}) ready at ${businessName}.`;
 
-const warrantyExpiring = ({ product, expiryDate, businessName }) =>
-  `${APP_NAME()}: Warranty for ${product} from ${businessName} expires ${expiryDate}.`;
+const warrantyExpiring = ({ product, expiryDate }) =>
+  `${APP_NAME()}: Warranty for ${product} expires ${expiryDate}.`;
 
-const electroLowStock = ({ businessName, itemName, stockLeft }) =>
-  `${APP_NAME()}: Low stock - ${itemName} at ${businessName} has ${stockLeft} left.`;
+const electroLowStock = ({ itemName, stockLeft }) =>
+  `${APP_NAME()}: Low stock - ${itemName} (${stockLeft} left).`;
 
-/* ============ CYBER MODULE ============ */
+/* ============ CYBER ============ */
 
-const sessionReceipt = ({ sessionNo, duration, amount, businessName }) =>
-  `${APP_NAME()}: Session #${sessionNo} at ${businessName}: ${duration}, KES ${fmt(amount)}. Thank you.`;
+const sessionReceipt = ({ sessionNo, duration, amount }) =>
+  `${APP_NAME()}: Session #${sessionNo}: ${duration}, KES ${fmt(amount)}. Thank you.`;
 
-const packageExpiring = ({ businessName, packageName, daysLeft }) =>
-  `${APP_NAME()}: Your ${packageName} package at ${businessName} expires in ${daysLeft} days.`;
+const packageExpiring = ({ packageName, daysLeft }) =>
+  `${APP_NAME()}: Your ${packageName} package expires in ${daysLeft}d.`;
 
-/* ============ MODULE MANAGEMENT ============ */
+/* ============ MODULE ============ */
 
-const moduleAdded = ({ businessName, moduleName }) =>
-  `${APP_NAME()}: ${moduleName} module activated for ${businessName}. Login: ${CLIENT_URL()}/login`;
+const moduleAdded = ({ moduleName }) =>
+  `${APP_NAME()}: ${moduleName} module activated. Login: ${CLIENT_URL()}/login`;
 
 const moduleSwitched = ({ moduleName }) =>
   `${APP_NAME()}: Switched to ${moduleName}.`;
 
-/* ============ BULK ============ */
+/* ============ GENERIC ============ */
 
-const broadcast = ({ message }) =>
-  `${APP_NAME()}: ${message}`;
-
-const generic = ({ message }) =>
-  `${APP_NAME()}: ${message}`;
+const broadcast = ({ message }) => `${APP_NAME()}: ${message}`;
+const generic = ({ message }) => `${APP_NAME()}: ${message}`;
 
 module.exports = {
   /* Registration */

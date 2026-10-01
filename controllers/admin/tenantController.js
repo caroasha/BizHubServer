@@ -9,6 +9,7 @@ const { sendSuccess, sendPaginated, sendError } = require('../../utils/response'
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../utils/logger');
 const cleanupService = require('../../services/tenantCleanupService');
+const tenantStatsService = require('../../services/tenantStatsService');
 
 const USER_MODEL_MAP = {
     restaurant: { path: '../../models/resto/User', name: 'RestoUser' },
@@ -71,8 +72,8 @@ const getAll = asyncHandler(async (req, res) => {
         ...t,
         subscription: subMap[t._id.toString()] || null,
         planInfo: {
-            name: t.settings?.planName || 'N/A',
-            amount: t.settings?.planAmount || 0,
+            name: t.settings?.planName || subMap[t._id.toString()]?.plan || 'N/A',
+            amount: t.settings?.planAmount || subMap[t._id.toString()]?.amount || 0,
             cycle: t.settings?.planCycle || 'N/A',
             paymentMethod: paymentLabels[t.settings?.paymentMethod] || t.settings?.paymentMethod || 'Manual',
         },
@@ -91,18 +92,23 @@ const getById = asyncHandler(async (req, res) => {
     const tenant = await Tenant.findById(req.params.id).lean();
     if (!tenant) throw new ApiError(404, 'Tenant not found', 'TENANT_NOT_FOUND');
 
-    const [subscription, modules] = await Promise.all([
+    const [subscription, modules, stats] = await Promise.all([
         Subscription.findOne({ tenantId: tenant._id }).lean(),
         Module.find({ tenantId: tenant._id }).lean(),
+        tenantStatsService.getTenantStats(tenant).catch((err) => {
+            logger.warn('Tenant stats failed:', err.message);
+            return { module: tenant.businessType, stats: [], aiRequests: 0 };
+        }),
     ]);
 
     return sendSuccess(res, {
         ...tenant,
         subscription,
         modules,
+        stats,
         planInfo: {
-            name: tenant.settings?.planName || 'N/A',
-            amount: tenant.settings?.planAmount || 0,
+            name: tenant.settings?.planName || subscription?.plan || 'N/A',
+            amount: tenant.settings?.planAmount || subscription?.amount || 0,
             cycle: tenant.settings?.planCycle || 'N/A',
             paymentMethod: paymentLabels[tenant.settings?.paymentMethod] || tenant.settings?.paymentMethod || 'Manual',
         },
